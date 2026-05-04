@@ -1,13 +1,36 @@
 reviews:
+  request_changes_workflow: false
+  high_level_summary: true
   path_filters:
-    - "!nyx-chat/web/public/**"
-    - "!nyx-chat/web/e2e/**"
-    - "!nyx-chat/web/src/components/ui/**" # Abaikan komponen UI murni
-    - "!nyx-chat/web/src/pages/**"         # Abaikan page layout
-    - "!**/*.css"
-    - "!**/*.svg"
-    - "!**/*.md"
-    - "!**/*.png"
-    - "!**/*.jpg"
-    - "!**/*.ico"
+    # ❌ BLOKIR FILE STATIS & LOKALISASI (PENYUMBANG FILE TERBESAR)
+    - "!web/public/**"
+    - "!web/src/locales/**"
+    - "!**/*.json"
+    - "!**/*.html"
     - "!**/*.txt"
+    - "!**/*.mjs"
+    - "!web/scripts/**"
+
+    # ❌ BLOKIR FILE E2E & CONFIG YANG TIDAK RELEVAN
+    - "!web/e2e/**"
+    - "!web/playwright.config.ts"
+    - "!web/vite.config.ts"
+    - "!web/eslint.config.js"
+    - "!web/Dockerfile"
+    - "!web/nginx.conf"
+
+    # ❌ BLOKIR KOMPONEN UI & PAGES (FOKUS KE LOGIC SAJA)
+    - "!web/src/components/ui/**"
+    - "!web/src/pages/**"
+    - "!web/src/App.tsx"
+    - "!web/src/main.tsx"
+    - "!web/src/index.css"
+
+    # ✅ FOKUS HANYA PADA FILE KRUSIAL INI:
+    - "packages/shared/src/**"
+    - "web/src/lib/**"
+    - "web/src/store/**"
+    - "web/src/utils/**"
+    - "web/src/workers/**"
+    - "web/src/hooks/**"
+    - "web/src/sw.ts"
