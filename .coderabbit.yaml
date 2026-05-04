@@ -1,0 +1,12 @@
+reviews:
+  request_changes_workflow: false
+  high_level_summary: true
+  path_filters:
+    # ✅ CodeRabbit HANYA akan mereview file yang ada di dalam path ini:
+    - "**/packages/shared/src/**"
+    - "**/web/src/lib/**"
+    - "**/web/src/store/**"
+    - "**/web/src/utils/**"
+    - "**/web/src/workers/**"
+    - "**/web/src/hooks/**"
+    - "**/web/src/sw.ts"
