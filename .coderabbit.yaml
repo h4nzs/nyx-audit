@@ -1,0 +1,27 @@
+reviews:
+  request_changes_workflow: false
+  high_level_summary: true
+  path_filters:
+    # ❌ BLOKIR SEMUA FILE NON-KRITIKAL & BOILERPLATE
+    - "!**/*.json"
+    - "!**/*.md"
+    - "!**/*.css"
+    - "!**/*.html"
+    - "!**/*.svg"
+    - "!web/public/**"
+    - "!marketing/**"
+    - "!web/e2e/**"
+    - "!packages/**"
+    - "!scripts/**"
+    - "!server/prisma/**"
+    - "!web/src/components/ui/**" # Ignore komponen UI murni
+    - "!web/src/pages/**"         # Ignore struktur halaman
+    - "!.*"                       # Ignore .env, .gitignore, dll
+    
+    # ✅ FOKUS HANYA KE CORE LOGIC & SECURITY
+    - "server/src/**"
+    - "web/src/lib/**"
+    - "web/src/store/**"
+    - "web/src/workers/**"
+    - "web/src/utils/**"
+    - "web/src/components/*Modal*.tsx" # Hanya cek komponen Modal (biasanya ada logic krusial)
