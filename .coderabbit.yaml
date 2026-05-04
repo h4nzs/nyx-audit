@@ -1,0 +1,12 @@
+reviews:
+  path_filters:
+    - "!web/public/**"
+    - "!web/src/components/ui/**" # Abaikan komponen UI murni
+    - "!web/src/pages/**"         # Abaikan page layout
+    - "!**/*.css"
+    - "!**/*.svg"
+    - "!**/*.md"
+    - "!**/*.png"
+    - "!**/*.jpg"
+    - "!**/*.ico"
+    - "!**/*.txt"
