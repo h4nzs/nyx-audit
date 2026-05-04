@@ -1,0 +1,767 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+## 🔒 [2.6.2] - 2026-05-01
+
+This update marks the completion of our transition to a fully Post-Quantum Hardened architecture. We have finalized the migration to `libsodium-wrappers` as our primary cryptographic provider and implemented rigorous security patches across the entire application layer.
+
+### 🛡️ Security & Cryptography
+* **Full Libsodium Migration:** Completed the migration of all cryptographic operations to `libsodium-wrappers`. Eliminated all remnants of the WebCrypto API (`crypto.randomUUID`, `crypto.subtle`) for core security functions to ensure a single, audited source of truth.
+* **Post-Quantum Hardening:** Enforced ML-KEM-768 (X-Wing) hybrid key exchange across all messaging protocols.
+* **Dynamic Sender Key Rotation:** Implemented a new smart rotation system for Sender Keys to maintain Post-Compromise Security (PCS), specifically hardening the unified Fan-Out architecture used for both 1-on-1 and group chats.
+* **Cryptographic App Lock:** Strengthened the "App Lock" by moving auto-unlock keys to `sessionStorage` (ephemeral) and implementing a memory-level wipe that clears private keys from RAM when the app loses focus.
+* **XSS & DOM Hardening:** Implemented specialized SVG sanitization for decrypted attachments and hardened the Markdown parser to block `javascript:` protocol execution in links.
+* **Paranoid Mode (PQ-DR):** Introduced "Paranoid Mode" (Post-Quantum Double Ratchet) for 1-on-1 messaging, providing a higher tier of security against future quantum threats.
+
+### ✨ New Features
+* **Stable Burner Chat:** Released the first stable version of Burner Chat sessions, providing a highly ephemeral and anonymous communication channel via secure link-based handshakes.
+* **Protocol Signaling:** Added dynamic protocol switch messaging to support seamless upgrades to PQC-hardened sessions.
+
+### 🐛 Bug Fixes & Stability
+* **Crypto Engine Reliability:** Fixed critical bugs in the PQC chain derivation and resolved race conditions in the key rotation sender state.
+* **Optimistic UI Timeout:** Added a 15-second timeout to all message-sending socket events, ensuring the UI correctly transitions to a "FAILED" state during network interruptions.
+* **Data Leakage Prevention:** Implemented `sanitizeErrorLog` to ensure that private keys, plaintext, or sensitive JSON metadata never leak into the browser console or UI toast notifications.
+* **Force Device Revocation:** Fixed a loophole where revoked devices could remain connected via Socket.IO; the server now enforces immediate disconnection upon device removal.
+
+### 🛠️ Maintenance & Testing
+* **Deep Security Audit:** Completed a comprehensive E2E security audit covering the UI, Zustand stores, and the Web Worker-based crypto engine.
+* **PQC Testing:** Integrated new cryptographic tests specifically for ML-KEM-768 and X-Wing constructs to ensure long-term stability and backward compatibility of keys.
+
+## 🔒 [2.6.1] - 2026-04-24
+
+This maintenance release focuses on absolute Zero-Knowledge integrity and Post-Quantum hardening. We have completely removed the server's role in cryptographic key generation, ensuring the backend remains a blind relay that never touches plaintext keys.
+
+### 🛡️ Security & Cryptography
+* **Pure Blind Relay Architecture:** Stripped all key generation (`sodium.crypto_secretbox_keygen`) and encryption (`crypto_box_seal`) from the server. The backend now only routes and stores opaque, client-encrypted blobs.
+* **Client-Authoritative Key Distribution:** Key rotation is now managed exclusively by the client. The initiator client generates the `sessionKey` locally and distributes it to all group members via hybrid **ML-KEM-768 (Post-Quantum)** + X25519 (X-Wing construct).
+* **Privacy Hardening:** Patched potential leaks of IP addresses and device names.
+* **Network Security:** Implemented strict rate-limiting for WebRTC signaling and fixed zombie socket connection cleanup.
+* **Database Integrity:** Migrated all key storage types in Prisma to `Bytes` (Buffer) for consistent binary handling.
+
+### 🐛 Bug Fixes & Stability
+* **Fatal Crash Prevention:** Replaced dangerous non-null assertions and unsafe `parseInt` logic in the local vault hex-parsing utility to prevent "White Screen" crashes during Argon2id verification.
+* **UI Logic:** Fixed bugs in the UI reply bubble logic to ensure consistent rendering of message threads.
+* **Socket Reliability:** Resolved race conditions in push notifications for multi-device environments.
+* **Crypto Validation:** Hardened Zod schemas for cryptographic payloads to prevent malformed packet injection.
+
+### 🛠️ Maintenance & Testing
+* **E2EE Testing Framework:** Fully integrated **Playwright** for comprehensive end-to-end (E2E) cryptographic testing.
+* **Localization:** Conducted a major update to the localization library, stores, and hooks to support expanded multi-language features.
+* **Clean Up:** Removed obsolete unit tests that relied on legacy, non-PQC architectures.
+* **Dependencies:** Bumped `axios` and various frontend/backend packages to resolve vulnerabilities and improve performance.
+
+## 🚀 [v2.6.0] - 2026-04-11
+
+This release brings one of the most significant architectural updates to Nyx Chat. We have completely rewritten the core cryptographic engine to support multiple simultaneous devices, ensuring you stay connected everywhere without compromising End-to-End Encryption (E2EE) privacy.
+
+### ✨ New Features
+* **Linked Devices (Multi-Device Support):** Your account can now be linked to multiple devices simultaneously. Each device maintains its own secure cryptographic identity, powered by our new *Fan-Out Sender Key* architecture.
+* **History Sync & Vault Management:** Seamlessly synchronize your chat history across linked devices via E2EE, complete with a revamped export/import system for the Local Vault.
+
+### 🐛 Bug Fixes
+* **Cryptography & Synchronization:** Fixed decryption failures on group metadata and perfected Message Key distribution across multi-device environments.
+* **Database / IndexedDB:** Resolved an issue where exporting/importing the vault and reloading messages resulted in empty chat bubbles.
+* **WebRTC & Calls:** Fixed bugs during call initialization and ensured the wakelock feature (preventing the screen from sleeping) works correctly during active audio/video calls.
+* **Notifications:** Push notifications are now strictly managed per-device to prevent conflicts or missing alerts across different active sessions.
+* **Marketing Site:** Fixed multi-language routing (`lang` page) on the Astro marketing site.
+
+### 🛡️ Security & Under the Hood
+* **Security Patches:** Resolved severity findings from static analysis (CodeQL), including preventing multiple log injection vulnerabilities.
+* **Type Safety:** Conducted a massive cleanup and refinement of TypeScript definitions to make the codebase more resilient against runtime errors.
+* **Dependency Updates:** Addressed Dependabot security alerts by bumping Vite to a secure branch, along with ESLint and various other core backend and frontend dependencies.
+* **Internal:** Cleaned up dozens of internal multi-device testing commits to keep the git history clean.
+
+## [2.5.5] - 2026-04-04
+
+### 🚀 Key Features & Architectural Changes
+- **Pure Store-and-Forward E2EE Architecture:** Completely eliminated long-term message storage on the server. Messages are now strictly ephemeral on the backend, existing only to be routed, and are instantly destroyed once the recipient acknowledges delivery.
+- **Unified Local Database (Dexie):** Refactored all raw IndexedDB usage to use `dexie`, vastly improving local query performance, code readability, and data integrity for the Shadow Vault.
+- **Zero-Knowledge Default Avatars:** Removed the third-party dependency on `dicebear.com` for generating default avatars. Avatars are now generated locally on the client using initials and deterministic colors, preventing metadata leaks and improving UI load times.
+- **Marketing Site Overhaul (Pure Astro):** Completely rebuilt the marketing pages (`/marketing`) using pure Astro. This drastically improves SEO, load speeds, and multi-language (i18n) handling.
+- **TypeScript 6.x Upgrade & Strict Mode:** Upgraded the entire monorepo to TypeScript 6.x. Eliminated the usage of `any` across the stack, introducing a Single Source of Truth (SSOT) for shared DTOs, Socket payloads, and database mappers.
+
+### 🛡️ Security & Privacy
+- **DOM-Based XSS Prevention:** Patched a critical vulnerability in the Markdown parser. Raw HTML inputs (e.g., `<h1>`) are now safely converted to literal text rather than being stripped out or executed.
+- **IDOR Prevention on View-Once Messages:** The server now strictly validates user participation before allowing `view_once_opened` socket events.
+- **Strict WebRTC Payload Validation:** Added rigid runtime type checking for all WebRTC signaling payloads (`offer`, `answer`, `candidate`) to prevent UI crashes from malformed packets.
+- **Legal & Compliance:** Removed inaccurate "HIPAA-ready" marketing claims to avoid compliance and legal risks, replacing them with accurate technical descriptors (e.g., *zero-knowledge, enterprise-grade security*).
+- **Hall of Fame:** Added `faiqalfaruq` to `SECURITY.md` for responsibly disclosing the DOM-based XSS vulnerability.
+- Updated multiple vulnerable dependencies including `serialize-javascript`, `lodash-es`, and `zod`.
+
+### 🐛 Bug Fixes
+- **E2EE Race Conditions:** Fixed a critical race condition where messages could be deleted from the server before being safely saved to the local IndexedDB.
+- **Unsend Paradox:** Fixed an issue where the "Unsend" socket event failed to broadcast because it attempted to query a message that had already been deleted by the Store-and-Forward mechanism.
+- **Story Viewer Timers:** Fixed bugs in the Story Viewer where the progress bar would run before the media was fully downloaded/decrypted. Video stories now correctly adapt their progress bar duration to the actual length of the video.
+- **Edit Message Button:** Fixed a bug in Optimistic UI where the "Edit" button would disappear immediately after sending a message due to a mismatch in the `type` state.
+- **Double Bubble & Desync:** Resolved various issues related to optimistic UI rendering, message bubble duplication, and read receipt (blue tick) synchronization between clients.
+- **Tailwind Scanner in Astro:** Fixed an issue where Tailwind CSS v4 failed to scan utility classes within the new Astro marketing pages.
+- **File Attachment Logic:** Improved file attachment handling for strict browsers (Firefox and Safari).
+
+### ⚡ Performance & Optimizations
+- **App Optimization Passes 1-6:** Conducted massive sweeps across the client application to reduce re-renders, optimize media loading, and improve React component lifecycles.
+- **Offline Queue Reliability:** Enhanced the robustness of the offline message queue, ensuring precise retries and preventing duplicates upon reconnection.
+- **Dependency Bumps:** Updated `pnpm/action-setup` to v5 and bumped various frontend and backend dependencies to their latest stable versions for better security and performance.
+
+
+## [2.5.4] - 2026-03-24
+
+This massive update brings a complete rewrite of our public-facing infrastructure, major architectural security enhancements ("The Grand Unification"), native WebRTC calls, the new Stories feature, and full internationalization. 
+
+### 🚀 New Features
+- **Next-Gen Marketing Pages (Astro):** Completely rewrote the landing, privacy, and help pages using pure Astro for zero-JS footprint, blazing-fast performance, and superior SEO/GEO.
+- **Global Internationalization (i18n):** Added native multi-language support across the app and landing pages. Officially supporting Indonesian (`id`), Spanish (`es`), and Portuguese (Brazil) (`pt-BR`), complete with a dynamic Language Switcher.
+- **Stories & Canvas Editor:** Introduced end-to-end encrypted Stories with complete privacy controls. Includes a native canvas image editor, dynamic crop modes, and attachment cropper.
+- **WebRTC & TURN Server:** Implemented a dedicated TURN server and a new WebRTC P2P mesh topology for highly reliable, encrypted audio/video calls.
+- **QR Connect:** New QR-based quick connect and peer discovery feature.
+- **Manual State Sync:** Added a new "Desync" button for users to manually forcefully reconcile local and server message states.
+
+### 🛡️ Architecture & Security ("The Grand Unification")
+- **Full Strict Mode:** Enforced TypeScript `strict: true` across the entire frontend and backend monorepo.
+- **Zod & Opaque Types:** Replaced loose types with Zod runtime shields and cryptographic opaque types to strictly validate all incoming/outgoing payloads.
+- **Shared Package:** Extracted core types and validations into a new unified `@nyx/shared` package for flawless backend-frontend contract matching.
+- **CodeQL Refactor:** Refactored GitHub CodeQL workflows for deeper security analysis.
+- **Vulnerability Patches:** Resolved multiple critical/high severity findings, updated vulnerable dependencies via `pnpm` overrides (e.g., `flatted`, `undici`), and hardened socket payload shields.
+- **Cryptography Enhancements:** Hardened X3DH protocol initiators and optimized cryptographic operations ordering via Proxy Web Workers.
+
+### 💅 Polish & Improvements
+- **SEO & IndexNow:** Implemented advanced SEO tags, GEO-hooks, and automated `IndexNow` pinging for faster search engine indexing.
+- **Media Optimization:** Enhanced image loading logic (lazy loading, responsive sizing) and UI icon refinements.
+- **Error Handling UI:** Redesigned error boundaries and fallback UIs for a smoother user experience during network failures.
+- **Settings Expansion:** Added new dedicated UI toggles for Push Notifications within the Settings page.
+
+### 🐛 Bug Fixes
+- **Message State & Sync:** Fixed recurring issues with message desync, offline queue logic, and atomic increment errors between local IndexedDB and server state.
+- **File Uploads:** Rewrote file upload sequence logic to prevent freezing and ensure proper metadata attachment.
+- **Dynamic Island:** Fixed null message rendering bugs that caused the Dynamic Island navigation to crash.
+- **Routing & Previews:** Fixed missing URL previews on reply messages and corrected React Router navigation edge cases in the Register flow.
+- **Legal & Branding:** Corrected typos and formatting in the Privacy Policy, Licensing (AGPL/Commercial), and Trademark attributions.
+
+## [2.3.0] - 2026-03-07
+
+This release introduces the **"Tactical UX & Advanced Operations"** upgrade. It significantly elevates the user experience, media handling, and functional messaging capabilities while maintaining strict adherence to Zero-Knowledge and E2EE protocols.
+
+### Advanced Messaging & E2EE Capabilities
+
+* **E2EE Message Editing:** Users can now edit sent messages. Edits are transmitted securely as specialized encrypted JSON payloads (`{"type":"edit"}`) that retroactively overwrite the local IndexedDB state and append an `(edited)` label. The server remains completely blind to the edits.
+* **Silent Drop (Ghost Messaging):** Long-pressing the send button reveals a "Send without sound" option. This feature uses a masked payload (`{"type":"silent"}`) to instruct the recipient's application to suppress ringtones and push notifications, allowing for discreet message delivery.
+* **Expanded Tactical Reactions:** Upgraded the static reaction menu. Clicking the new "More" (`+`) button reveals a full Emoji Picker. This utilizes an isolated global event hijacking technique to map the dynamic emoji back to the specific E2EE message safely.
+* **Tombstone Protocol (Ghost Placeholder Fix):** Fixed a critical E2EE synchronization bug where locally deleted messages would reappear as "Decryption failed" upon reload. Implemented a soft-delete tombstone pattern (`isDeletedLocal: true`) in the local vault to safely ignore server re-fetches.
+* **Crypto Mutex Serialization:** Resolved a Double Ratchet race condition when bulk-sending files. Implemented a Promise-based Mutex queue (`acquireSendLock`) to strictly serialize concurrent E2EE operations, preventing Ratchet Counter (N) collisions.
+
+### Media Handling & Staging
+
+* **Media Staging Carousel:** Completely overhauled the file attachment flow. Selected files are now intercepted and held in a staging area (a horizontal carousel) above the text input. Users can review, cancel individual files, and add text before executing the final upload.
+* **Dynamic HD Image Upload:** Added an "HD" toggle for media. Standard images undergo aggressive client-side compression (1MB/1080p limit), but enabling HD dynamically bypasses this constraint to allow high-fidelity image uploads (up to 10MB/4K).
+* **Native Voice Note Compression:** Optimized the client-side `MediaRecorder`. Voice notes are now forced into the `audio/webm;codecs=opus` codec with a strictly throttled 16kbps bitrate, cutting audio file sizes by up to 80% with zero external dependencies.
+* **SVG Structure Preserver:** Fixed a rendering bug where E2EE decrypted SVG blobs would collapse to zero dimensions in the Chat UI by enforcing structural aspect ratios and container constraints.
+
+### Privacy & Security UX
+
+* **Voice Anonymizer (Real-Time Distortion):** Introduced an "ANON" mode for Voice Notes. When toggled, it intercepts the microphone stream via the native Web Audio API, applying a real-time Ring Modulator (40Hz) and Lowpass Filter (800Hz) to deeply scramble and disguise the user's voice *before* encryption.
+* **Privacy Cloak:** Added a tactical sensor toggle (Eye icon) in the main header. Activating it instantly applies a CSS blur and opacity filter over all chat list contents and message bubbles, physically protecting the screen from shoulder-surfers.
+* **Biometric Identity Normalization:** Fixed WebAuthn initialization where authenticator prompts displayed random hex arrays. Normalized the User ID buffer for a cleaner OS-level biometric prompt and improved fallback routing when PRF keys desynchronize.
+
+### Functional UX
+
+* **Tactical Sweep (Bulk Delete):** Introduced a bulk selection mode. Users can enter "Select" mode via the context menu, tap checkboxes next to multiple messages, and execute a mass-deletion from their local IndexedDB via a dedicated tactical header.
+* **Smart Message Truncation:** Extremely long text messages are now elegantly truncated to a maximum height. Instead of raw string slicing (which breaks Markdown), it utilizes CSS `mask-image` fade-out gradients and a "Read More / Show Less" toggle.
+
+## [2.2.0] - 2026-02-26
+
+This release introduces the "Pure Anonymity" architecture, completely decoupling the application from email and phone numbers. It establishes NYX as a Trust-Tier system with Zero-Knowledge principles at its core.
+
+### The Great Decoupling (Pure Anonymity)
+- **Email Removal:** Completely removed all email-related logic, columns, and dependencies from the database and backend. Registration and Login now use a **Blind Indexing** mechanism.
+- **Blind Indexing:** Usernames are hashed client-side using Argon2id with a static salt before being sent to the server. The server stores only `usernameHash` and has no knowledge of the original username.
+- **No PII Storage:** The server database no longer contains any Personally Identifiable Information (PII). `name`, `avatarUrl`, and `description` are encrypted client-side.
+
+### Trust-Tier System (The Sandbox)
+- **Sandbox Mode:** New accounts start in "Sandbox Mode" (Unverified) by default to prevent spam.
+- **Gatekeeper:** Implemented strict server-side rate limiting for unverified users:
+  - Max 5 messages/minute.
+  - No group creation allowed.
+  - Max 3 new private conversations per day.
+  - Search results limited to 3 items.
+- **VIP Upgrade:** Users can upgrade to "Verified" status (VIP) via:
+  - **Biometric Verification:** Instant upgrade using WebAuthn (Fingerprint/FaceID).
+  - **Proof of Work (PoW):** A privacy-friendly alternative where users solve a cryptographic puzzle (SHA-256 mining) in the browser to prove they are human.
+
+### Security & Cryptography
+- **Profile Encryption:** User profiles (Name, Bio, Avatar) are now encrypted client-side using a symmetric `ProfileKey`. This key is securely exchanged via the Double Ratchet header in the first message to a new contact. The server only stores `encryptedProfile`.
+- **WebAuthn PRF (Biometric Vault):** Implemented the WebAuthn Pseudo-Random Function (PRF) extension. This allows users to decrypt their local key vault (containing the Recovery Phrase) using only their biometric authentication, enabling a true passwordless login experience.
+- **Zero-Knowledge Recovery:** Account recovery now uses a cryptographic signature derived from the 24-word phrase to authorize password resets, without ever revealing the phrase to the server.
+- **Device Migration Tunnel:** Added a secure, direct WebSocket tunnel for transferring account data from an old device to a new one via QR code, bypassing the need for cloud backups.
+
+### Infrastructure
+- **Cloudflare R2 Hardening:** Fixed critical CORS issues with AWS SDK v3 by disabling checksum calculation and enforcing path-style URLs for compatibility with Cloudflare R2.
+- **Redis Integration:** Expanded Redis usage for PoW challenges, Sandbox rate limiting, and ephemeral state management.
+
+### UI/UX
+- **Settings Overhaul:** Redesigned the Settings page to display Trust Tier status (Verified/Sandboxed) and manage the new security features (Vault Export/Import, Biometric Setup).
+- **Registration Flow:** Updated the registration process to offer immediate Biometric Verification for VIP status.
+- **Visual Feedback:** Added visual indicators for Verified users in chat lists and profiles.
+
+## [2.1.1] - 2026-02-22
+
+### Privacy & Security
+- **Reactions as Messages:** Replaced the legacy `MessageReaction` table with E2E encrypted messages. Reactions are now transmitted as secure messages and processed client-side, eliminating metadata leakage about user interactions.
+- **Blind Attachments:** Implemented blind attachment protocol. File metadata (name, type, size, key) is now encrypted within the message payload. The server no longer stores `fileUrl` or file metadata in plaintext columns.
+- **Backend Cleanup:** Removed `imageUrl`, `fileUrl`, `fileName`, `fileType`, `fileSize`, `duration`, and `fileKey` columns from the `Message` model in `schema.prisma`. Removed `MessageReaction` model.
+- **Endpoint Hardening:** Removed legacy upload endpoints that saved file metadata. Updated `POST /api/messages` to reject file fields, accepting only encrypted content.
+
+### Fixes
+- **Reaction Deletion:** Fixed 404 errors when deleting reactions by ensuring the correct server-side Message ID is used instead of the local optimistic ID.
+- **Decryption Reliability:** Fixed race conditions where messages appeared as "Legacy Message Unreadable" or "Waiting for key" by implementing robust re-decryption logic with a slight delay to allow key storage.
+- **Chat List Preview:** Fixed issue where reactions appeared as raw JSON in the chat list preview. Now displays "Reacted [Emoji]" or the last actual message.
+- **Frontend Refactor:** Unified upload logic in `messageInput.ts` to support blind attachments for both file uploads and voice notes.
+
+### Infrastructure
+- **Database:** Schema simplified by removing file-related columns and the reaction table. (Requires migration: `npx prisma migrate dev`).
+
+## [2.1.0] - 2026-02-21
+
+This release establishes NYX as a "Paranoia-Level" secure messaging platform. It introduces a Hardened Encryption protocol (XChaCha20), eliminates all forms of user tracking, and secures the application infrastructure against advanced attacks.
+
+### Security Hardening (Paranoia Level)
+
+-   **XChaCha20-Poly1305 Migration:**
+    -   **Hard Migration:** Replaced the legacy XSalsa20-Poly1305 cipher with the modern, high-performance **XChaCha20-Poly1305** stream cipher for all new message encryption.
+    -   **Mobile Optimization:** Leverages XChaCha20's superior performance on ARM-based mobile devices.
+    -   **Clean Break:** Old messages encrypted with XSalsa20 are intentionally rendered unreadable to ensure a clean cryptographic state moving forward.
+-   **Privacy-First Architecture:**
+    -   **Zero Analytics:** Removed all tracking scripts (`Google Analytics`, `Vercel Analytics`, `Hotjar`) and dependencies.
+    -   **Metadata Protection:** Disabled Service Worker API caching to prevent metadata leakage in browser storage.
+    -   **IP Anonymization:** Server now **hashes IP addresses** (SHA-256) before storing them in the refresh token table, preventing long-term tracking of user locations.
+-   **Frontend Defense:**
+    -   **XSS Proofing:** Replaced the custom markdown parser with `react-markdown` and `rehype-sanitize`, strictly sanitizing all HTML output to prevent Cross-Site Scripting (XSS).
+    -   **Strict CSP:** Implemented a rigorous Content Security Policy (CSP) that blocks all unauthorized scripts, analytics, and unsafe evaluations (except necessary WASM).
+-   **Backend Defense:**
+    -   **DoS Protection:** Implemented a **Split Body Parser** strategy. General API endpoints are now strictly limited to `100kb` payloads, while file uploads are isolated with a `15mb` limit.
+    -   **Rate Limiting:** Added Redis-backed rate limiting to critical WebSocket events (`join`, `message`, `typing`) to prevent socket flooding.
+    -   **Input Validation:** Enforced strict `Zod` schema validation on all critical message and reaction endpoints.
+
+### Changed
+
+-   **Nginx Configuration:**
+    -   Updated `nginx.conf` for VPS deployment (Port 3000, Proxy to Localhost).
+    -   Hardened security headers: `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, and `Permissions-Policy`.
+    -   Disabled Gzip compression for `application/json` to mitigate BREACH attacks on encrypted API responses.
+-   **Supply Chain:**
+    -   Audited and fixed all critical NPM vulnerabilities via `pnpm.overrides`.
+    -   Removed unused and bloated dependencies: `multer`, `crypto-js`, `@types/helmet`, `bcrypt`.
+
+## [2.0.0] - 2026-02-10
+
+This landmark release transforms NYX into a "Fortress of Privacy" with a completely re-architected security model, introduces AI-powered features, and achieves full compliance transparency. It represents the biggest leap in security and capability since the project's inception.
+
+### Security Architecture Overhaul (The "Cloud Vault" Upgrade)
+
+-   **IndexedDB Key Storage:** Migrated all cryptographic key storage from vulnerable `localStorage` to an isolated **IndexedDB** instance (`keychain-db-${userId}`). This mitigates XSS risks and allows for secure multi-user login on the same device.
+-   **Encrypted Key Sync (Cloud Vault):** Implemented a "Zero-Knowledge" synchronization system. Encrypted private keys are now securely backed up to the server during registration and automatically restored upon login. This allows users to access their encrypted chats on new devices simply by logging in with their password, eliminating the need for manual manual restores while maintaining full E2EE.
+-   **Argon2 Hashing:** Upgraded the backend password hashing algorithm from `bcrypt` to **Argon2id** for superior resistance against GPU-based brute-force attacks. Includes a seamless "lazy migration" system for existing users.
+-   **Memory Wiping:** Implemented rigorous memory hygiene in the `crypto.worker.ts`. Sensitive variables (seeds, private keys) are now explicitly wiped using `sodium.memzero()` immediately after use to protect against RAM scraping attacks.
+-   **Secure Logout:** The logout process now aggressively sanitizes the browser environment, wiping all local cryptographic material (Master Keys) while preserving the encrypted session database for future access.
+
+### Added (New Features)
+
+-   **AI Smart Reply (Powered by Gemini):**
+    -   Integrated Google Gemini 1.5 Flash to provide privacy-first, on-device smart reply suggestions.
+    -   **Privacy-First Design:** Messages are decrypted locally, sent ephemerally to the AI for analysis, and never stored.
+    -   **Context-Aware:** The AI intelligently detects if the last message was from the other party to prevent self-reply suggestions.
+    -   **Opt-In:** This feature is disabled by default and must be explicitly enabled in Settings.
+-   **Legal & Privacy Center:**
+    -   Added a comprehensive `/privacy` page detailing the Data Policy, Terms of Service, and Security Architecture.
+    -   Accessible from the Login/Register footer and the Settings menu.
+-   **System Notifications:** Implemented persistent in-chat system banners to warn users about optimal security practices (e.g., ensuring both parties are online for the initial handshake).
+
+### Changed
+
+-   **Mobile Viewport Optimization:** Replaced `100vh` with `100dvh` (Dynamic Viewport Height) across the application (`App.tsx`, `index.css`). This finally resolves the notorious "floating address bar" issue on mobile browsers, ensuring the chat input is always visible.
+-   **Profile Experience:**
+    -   The Profile Page and User Info Modal now display **real-time** data, including the user's actual Public Identity Key (fingerprint) and online status.
+    -   Email addresses are now visible on profiles if the user has opted to share them.
+
+### Fixed
+
+-   **CRITICAL: Key Rotation Signature Failure:** Fixed a major bug where rotating keys would break future conversations. The server now correctly updates the user's public `signingKey` during rotation, ensuring valid signature verification for new sessions.
+-   **CRITICAL: Registration Race Condition:** Resolved a race condition where the application would attempt to bootstrap a session before the registration process completed, causing the newly generated keys to be wiped. Added safeguards to the `bootstrap` and `verifyEmail` flows.
+-   **CRITICAL: Crypto Worker Type Errors:** Fixed deserialization issues in `crypto.worker.ts` that caused "unsupported input type" errors for `x3dh_initiator`, `crypto_box_seal_open`, and file encryption operations.
+-   **Session Key Persistence:** Fixed a regression where logging out would delete session keys, making old chats unreadable upon re-login. The system now correctly preserves encrypted session keys locally.
+-   **Verification UI:** Added a prominent notice to the Email Verification modal advising users to check their Spam/Junk folders.
+
+## [1.9.0] - 2026-02-02
+
+This major release focuses on "Performance & Polish". It introduces a complete visual overhaul to "Industrial Neumorphism", implements a rigorous "Crypto Quarantine" for faster initial load times, and resolves critical bugs in voice messaging and security.
+
+### Added
+
+-   **Performance: Crypto Quarantine (Lazy Loading):**
+    -   Refactored the application architecture to **lazy load** the massive cryptographic libraries (`libsodium`, `crypto-worker`). The ~750KB crypto bundle is now only downloaded when a user logs in or performs an encrypted action, significantly improving the "Time to Interactive" on the Landing Page.
+    -   Added visual loading states (`isInitializingCrypto`) to provide feedback while the security module initializes.
+-   **Performance: Virtualized Lists:** Implemented `react-virtuoso` virtualization with optimized memoization for both the Chat List and Message Window. This resolves severe scrolling lag on mobile devices by only rendering items currently in view.
+-   **SEO & GEO Optimization:**
+    -   Added `robots.txt` and `sitemap.xml` to properly index the application.
+    -   Injected rich JSON-LD schema (`SoftwareApplication`, `Organization`, `FAQPage`) into `index.html` to optimize for AI citation (GEO) and Google Rich Results.
+-   **Security: Cloudflare Turnstile:** Integrated Cloudflare Turnstile on the Registration page to prevent bot abuse, complete with proper Content-Security-Policy (CSP) configuration.
+
+### Changed
+
+-   **UI Overhaul: Industrial Neumorphism:**
+    -   **Design System:** Fully implemented a new "Industrial Neumorphism" design language featuring custom `neu-*` shadows, "Seam" separators, and "Trench" inputs for a tactile, physical feel.
+    -   **Profile Page:** Redesigned into a "Personnel File" dashboard layout.
+    -   **Modals:** Refactored `UserInfoModal` into a "Digital Identity Card" design.
+    -   **Dynamic Island:** Updated with "Heavy Levitation" physics.
+-   **Asset Diet:** Removed over **4MB** of unused background assets and moved documentation screenshots out of the production build, further reducing the initial download size.
+
+### Fixed
+
+-   **Voice Message Decryption:** Fixed a critical bug where voice messages failed to play with the error "Data provided to an operation does not meet requirements". The player now correctly decrypts the *file key* using the session key before attempting to decrypt the audio file.
+-   **Voice Uploads:** Fixed `OpaqueResponseBlocking` errors by ensuring encrypted voice files are uploaded with the `application/octet-stream` MIME type to Cloudflare R2.
+-   **Lightbox Z-Index:** Fixed an issue where the image lightbox was clipped by sidebars or modals. It now uses a React Portal to render at the top level of the DOM.
+-   **Content-Security-Policy (CSP):**
+    -   Hardened CSP to allow Web Workers (`blob:`) and Cloudflare Turnstile (`challenges.cloudflare.com`) while blocking unauthorized scripts.
+    -   Aligned the backend `helmet` CSP configuration with the frontend meta tags.
+-   **Bio/Profile Caching:** Fixed a bug where profile bio updates were not visible immediately due to aggressive API caching. Added `Cache-Control: no-store` headers to API responses.
+
+## [1.8.0] - 2026-01-19
+
+This is a major stability and architectural release focused on delivering a fully functional, robust, and user-friendly "Link Device" feature. It resolves a series of deep, interconnected bugs in the authentication, cryptography, and real-time state management layers.
+
+### Added
+
+-   **Fully Functional "Link Device" Feature:** Users can now seamlessly and reliably link a new device by scanning a QR code. The new device is set up automatically without requiring password entry, providing a modern and convenient onboarding experience.
+
+### Fixed
+
+-   **CRITICAL: Complete Overhaul of Device Linking Flow:** Diagnosed and fixed a cascade of critical bugs that previously made the feature unusable.
+    -   **UI Stability:** Resolved a persistent crash on the QR scanner page (`DeviceScannerPage`) by correctly managing the camera lifecycle within React.
+    -   **Race Condition Elimination:** Fixed a critical race condition where global application logic (`App.tsx`) would prematurely terminate the guest WebSocket connection or trigger unauthorized API calls during the linking process.
+    -   **Cryptographic Integrity:**
+        *   Resolved a fundamental data format mismatch between the client and the crypto worker, fixing an `incomplete input` error.
+        *   Fixed a subtle key derivation mismatch, where the encryption key did not match the decryption key, resolving the `wrong secret key for the given ciphertext` error.
+        *   Corrected the encrypted payload structure to match the exact format expected by the decryption function in the crypto worker.
+-   **Authentication Flow Robustness:**
+    -   **Registration:** Fixed a bug that caused the initial secure key upload (`setupAndUploadPreKeyBundle`) to fail after a user registered a new account.
+    -   **Login:** Improved the login flow to immediately decrypt and cache local keys using the login password, removing a redundant password prompt.
+-   **Build Stability:** Resolved multiple TypeScript syntax and type errors that were preventing successful production builds.
+
+### Changed
+
+- **Improved Help & FAQ:** The content of the Help page (`HelpPage.tsx`) and the security info modal (`ChatInfoModal.tsx`) has been completely rewritten to be more accurate, comprehensive, and to correctly explain the new "Link Device" feature as the primary method for adding devices.
+
+## [1.7.1] - 2025-12-29
+
+This is a massive stability, security, and architectural hardening release that resolves numerous critical bugs, race conditions, and security vulnerabilities, particularly within the End-to-End Encryption (E2EE) and real-time state synchronization systems.
+
+### Changed
+
+-   **Major E2EE Decryption Refactor:** Rearchitected the entire message decryption flow to eliminate critical race conditions. All decryption logic is now centralized in a single function (`decryptMessageObject`) which acts as the "single source of truth". It now robustly determines the message context (1-on-1 vs. Group) based on the message's `sessionId` rather than relying on potentially stale component state.
+-   **Robust Key Rotation & Request Handling:**
+    -   The key rotation process for groups is no longer "fire-and-forget". It now features an automatic retry mechanism with exponential backoff.
+    -   Key requests for missing group keys now have a timeout and retry limit. If all retries fail (e.g., no other users are online), messages will now display a final "Key request timed out" error instead of being stuck in a "waiting" state indefinitely.
+
+### Fixed
+
+-   **CRITICAL SECURITY: Invalid Key Distribution Vulnerability:** Patched a critical vulnerability where any authenticated user could distribute encryption keys to any conversation, even those they were not a part of. The server now strictly validates that the key distributor is a member of the target conversation.
+-   **CRITICAL SECURITY: Reply Chain DoS Vulnerability:**
+    -   Hardened the client-side decryption logic to prevent infinite recursion or stack overflow crashes when processing messages with circular or excessively deep reply chains.
+    -   Added server-side validation to reject new messages that would create a reply chain deeper than a set limit.
+-   **CRITICAL SECURITY: History Leak on Re-join:** Fixed a major privacy leak where a user who was kicked from and then re-added to a group could see the message history from their original membership period after a page reload. The server now correctly resets the user's "joined at" timestamp upon re-joining.
+-   **CRITICAL SECURITY: Key Material Leaked in Logs:** Removed multiple `console.log` statements that were insecurely printing sensitive cryptographic key material in the browser console.
+-   **Real-time & State Synchronization Bugs:**
+    -   Fixed a bug where the group member list in the UI would not update in real-time when a user was added or removed.
+    -   Fixed an issue where a user kicked from a group would still receive notifications for new messages in that group. The client now correctly ignores events for conversations it has left.
+    -   Fixed a bug where an Admin's special controls (e.g., "add member") would disappear after reloading the page. The server now consistently provides the user's role data.
+-   **General Stability:**
+    -   Fixed multiple `ReferenceError` crashes caused by missing imports or undeclared variables in the crypto and state management modules.
+    -   Fixed a bug where the "retry send" feature would not work correctly for messages that were replies.
+
+## [1.7.0] - 2025-12-27
+
+This is a major architectural and stability release that introduces significant performance improvements for end-to-end encryption (E2EE) and fixes critical bugs in the group chat implementation.
+
+### Added
+
+- **Cryptography Offloading to Web Workers:** All heavy cryptographic operations (key generation, encryption, decryption) have been moved off the main UI thread and into a dedicated Web Worker. This prevents the UI from freezing during intensive crypto calculations, resulting in a significantly smoother and more responsive user experience, especially on lower-end devices.
+- **Functional Group Chat E2EE:** Implemented the foundational layer for secure group conversations. This version uses a **shared group key** model where a single, securely distributed key is used by all members to encrypt and decrypt messages. This provides a robust and efficient E2EE baseline for group chats.
+
+### Fixed
+
+- **Critical Group Chat E2EE Bug:** Diagnosed and fixed a series of complex, interconnected bugs that prevented group chats from functioning correctly.
+  - **Key Distribution Failure:** Fixed a critical flaw where group encryption keys were generated by the sender but never successfully distributed to other participants. This was traced to both a missing server-side socket listener and client-side logic that failed to trigger distribution at the correct time. The system now reliably distributes keys to all members before a message is sent.
+  - **Missing Public Key Data:** Fixed a bug where the server would not send participants' public keys when fetching conversation data. This was the final root cause of the "Participant has no public key" error.
+  - **Incorrect Encryption Path:** Fixed the underlying issue that caused the application to mistakenly use 1-on-1 encryption logic for group messages, which led to the "No session key available" error. The correct group encryption path is now always used.
+
+## [1.6.0] - 2025-12-02
+
+This is a massive stability and security release that resolves numerous critical bugs throughout the application, with a major focus on making the end-to-end encryption (E2EE) system and real-time features robust, secure, and reliable.
+
+### Fixed
+
+- **Critical End-to-End Encryption Overhaul:**
+  - Resolved a persistent and complex bug that caused initial E2EE sessions to fail. The fix involved correcting the client-side key derivation logic, ensuring the server correctly stores all required cryptographic keys, and fixing database relationships (`PrismaClientValidationError`).
+  - The client now correctly handles session keys generated by both client-side handshakes and server-side ratchets, fixing an architectural mismatch that led to `404` errors.
+  - Corrected the client-side key generation and storage process to ensure all necessary private keys (`identity`, `signing`, `signedPreKey`) are deterministically created and stored, enabling the recipient-side key derivation to succeed.
+
+- **Security & Data Integrity:**
+  - Removed a silent fallback to non-encrypted conversations, which was a critical security risk. The application will now explicitly fail if a secure session cannot be established.
+  - Fixed an authorization vulnerability where any user could react to messages in conversations they were not a part of.
+  - Fixed another authorization vulnerability where users could fetch messages from conversations they were not a part of.
+  - Ensured conversation and session key creation is now an atomic database transaction to prevent orphaned or inconsistent data.
+  - Fixed a data integrity issue where a user's primary identity key (`User.publicKey`) was not being updated correctly in all scenarios.
+
+- **Real-time & UI Functionality:**
+  - **Read Receipts:** Fixed a bug preventing read receipts from working. The status of messages now updates in real-time when a recipient views them.
+  - **Profile Updates:** Fixed a bug where user profile updates were not reflected in real-time for other users.
+  - **Notifications:** Fixed both the "Dynamic Island" and Notification Bell features, which were not showing notifications for new messages in inactive chats.
+  - **Message Bubble Deletion:** Fixed a UI rendering bug where deleting a message would cause its bubble to incorrectly display the content of the message below it.
+  - **State Management on Logout:** Fixed a critical bug where logging out and logging back in without a page refresh would cause application errors. The logout process now fully and correctly resets all application state.
+  - **Message Retry Logic:** Fixed a bug that would cause a message to become permanently unreadable if the "retry send" action was used.
+
+## [1.5.0] - 2025-11-10
+
+This is a quality-of-life and robustness release focused on polishing the user interface of newly implemented features and hardening the application against potential data inconsistencies.
+
+### Changed
+- **Polished Voice Message Player:** The UI for the voice message player has been significantly improved:
+  - The play button now uses the main theme background color for better contrast against the message bubble.
+  - A "thumb" indicator has been added to the progress bar, providing clearer visual feedback of the current playback position.
+  - The overall layout and styling have been tweaked for a more refined and professional appearance.
+- **Improved Error Handling for Missing Files:** All media components (`VoiceMessagePlayer`, `FileAttachment`, `LazyImage`, `Lightbox`) now provide a clear, user-friendly error message ("File not found on server.") when they fail to load a file due to a 404 error. This improves the user experience if files are cleaned up from the server.
+- **Consistent Modal Language:** All text within the "Security Info" modal (`ChatInfoModal`) has been standardized to English to ensure consistency.
+
+### Fixed
+- **Incomplete Chat History:** Fixed a critical bug where opening a conversation would sometimes only show the most recent messages instead of the full history. The message loading logic now correctly fetches the complete history the first time a chat is opened.
+- **Voice Message Bubble Width:** Fixed a UI bug where voice message bubbles would shrink, by enforcing a fixed, proportional width for all voice messages.
+- **Voice Message Duration Bug:** Fixed a critical bug where the duration of all voice messages was incorrectly recorded as `0`. This was traced to a stale state issue within an event handler, which has been resolved by using a `useRef` hook to guarantee the correct duration is captured. This fix also corrected the progress bar indicator, which was stuck at the start.
+- **File Deletion on Server:** Fixed a critical bug where deleting a message with a file attached would delete the database record but leave the physical file on the server. The backend logic now correctly reconstructs the file path and deletes the file from storage.
+- **Lightbox Image Overflow:** Fixed a bug where very tall or wide images would overflow the screen in the lightbox view. The component now correctly constrains the image to the viewport while maintaining its aspect ratio and ensuring a consistent margin.
+- **Reply Preview:** Fixed a bug where the reply preview UI would show incorrect information or raw encrypted text. The preview now correctly shows the sender's name and a proper summary for all message types (text, file, voice).
+- **Build Failure:** Fixed a build failure caused by a dangling import to a deleted file (`sanitize.ts`) in `ChatList.tsx`.
+
+### Reverted
+- **Typing Indicator:** Reverted a change that attempted to fix the typing indicator. The implementation caused a regression in the user presence (online/offline) status and has been rolled back to restore the correct presence behavior. The typing indicator remains non-functional and is a known issue.
+
+## [1.4.0] - 2025-11-10
+
+This is a major security and feature release that implements a complete, end-to-end encrypted (E2EE) file sharing system, building upon the robust patterns established in previous versions. All user-uploaded content, including voice messages, images, and documents, is now fully encrypted.
+
+### Added
+- **E2EE for All File Uploads:** Extended the end-to-end encryption protocol to cover all file types. The application now follows a consistent and secure pattern for all uploads:
+  1.  A one-time symmetric key is generated for the file on the client.
+  2.  The file is encrypted with this key.
+  3.  The file key is then encrypted with the conversation's session key.
+  4.  The encrypted file is uploaded, and the encrypted file key is sent as part of the message payload.
+- **E2EE Voice Messages:** Implemented a full-featured voice messaging system with E2EE.
+- **Smart Media Components:** Refactored all components that handle file-based media (`VoiceMessagePlayer`, `FileAttachment`, `LazyImage`, `Lightbox`) to be "smart". They now accept the full message object, handle their own decryption logic, and manage loading/error states internally.
+
+### Fixed
+- **Critical E2EE Data Corruption Bug:** Diagnosed and fixed a persistent and elusive bug where encrypted keys were being corrupted before reaching the receiver. The root cause was traced to the database schema, where the `content` field had a default length limit that was silently truncating the long encrypted keys.
+  - **Solution:** The `content` field's data type was changed to `Text` in the Prisma schema to remove the length limit. As a more robust, long-term solution, a dedicated `fileKey` field was added to the `Message` model to completely isolate file keys from the text `content` field, preventing any future conflicts.
+- **UI Race Condition in Voice Recording:** Fixed a bug where the voice message duration was always recorded as `0` seconds. This was caused by a race condition where the recording timer was reset before the `onstop` event could capture its value.
+- **E2EE Key Decryption Failures:**
+  - Fixed a bug where the sender of a voice message or file would see a decryption error on their own optimistic message. This was resolved by making the media components "optimistic-aware" and preventing them from attempting to decrypt a raw, unencrypted key.
+  - Fixed multiple instances where components would attempt to decrypt the wrong message field (e.g., `content` instead of `fileKey`).
+- **Broken Lightbox:** Fixed a bug where the image lightbox failed to display images after the initial E2EE implementation. The `Lightbox` component was refactored to be "smart" and handle its own decryption.
+- **UI Glitches:**
+  - Fixed a bug where the raw file key (a random string) would briefly appear in the message bubble for voice messages.
+  - Corrected placeholder text in reply previews for voice messages.
+
+## [1.3.0] - 2025-11-10
+
+This release introduces a comprehensive, professional landing page to serve as the application's public-facing "front door". It also includes numerous UI/UX enhancements and critical routing fixes.
+
+### Added
+- **New Landing Page:** Created a full-featured, animated landing page at the root (`/`) of the application, including:
+  - A hero section with a call-to-action.
+  - An interactive theme comparison slider to showcase light and dark modes.
+  - A "Features" section with animated cards.
+  - A "How It Works" section visually explaining the security flow.
+  - A "Works Everywhere" section displaying the app on multiple devices.
+  - A "Testimonials" section for social proof.
+- **Scroll Animations:** Implemented "fade-in" and "slide-up" animations on all sections of the landing page, triggered as the user scrolls.
+- **Hover Animations:** Added a more dynamic, spring-based "expand and lift" effect to the feature cards on hover.
+
+### Changed
+- **Root Routing:** The application's root route (`/`) now serves the public landing page. The main chat interface is now exclusively accessible via the `/chat` route.
+
+### Fixed
+- **Post-Login Redirect:** Fixed a critical bug where users were redirected to the landing page after logging in, registering, or restoring an account. All authentication flows now correctly redirect to `/chat`.
+- **In-App Back Buttons:** Corrected multiple "back" buttons (e.g., from Settings) to navigate to `/chat` instead of the root landing page.
+- **Landing Page Scrolling:** Fixed a bug where a global `overflow: hidden` style prevented the new landing page from being scrollable.
+- **Component Rendering:** Fixed several React/JSX errors in the landing page that caused build failures or prevented components (like the theme slider and testimonials) from rendering correctly.
+
+## [1.2.0] - 2025-11-08
+
+
+This is a major architectural release focused on improving the long-term maintainability, stability, and performance of the application by refactoring core components and fixing critical real-time functionality bugs.
+
+### Changed
+
+- **Theming:**
+  - Overhauled the color palettes for both light and dark modes to create a more authentic and cohesive Neumorphic aesthetic.
+  - Dark mode now uses a neutral dark gray theme, removing all blue tints for a "true black" feel.
+  - Light mode now uses a softer, off-gray background for both the main view and component surfaces, creating a more subtle "soft UI" effect.
+  - Adjusted all shadow and border colors to complement the new palettes and enhance the 3D effect.
+
+- **Major State Management Refactor:** The monolithic `useMessageStore` has been broken down into smaller, more focused stores (`useMessageStore`, `useMessageInputStore`, `useMessageSearchStore`) to improve separation of concerns and simplify state management.
+- **Component Logic Extraction:** Refactored the `ChatList` component into a purely presentational component. All of its business logic, state selection, and side effects have been extracted into a new, dedicated `useChatList` custom hook.
+- **Conversation Creation Flow:** Moved 1-on-1 conversation creation logic from a WebSocket event (`message:send`) to the `POST /api/conversations` REST endpoint, making the creation process more explicit and robust.
+- **Centralized File Uploads:** Consolidated file upload logic into a new `apiUpload` helper function, removing direct `axios` usage from the stores and ensuring consistent authentication handling.
+
+### Fixed
+
+- **Real-time Connection for New Chats:**
+  - Fixed a critical bug where the creator of a new group or 1-on-1 chat would not receive real-time messages until refreshing. The client now immediately joins the new conversation's socket room.
+  - Fixed an issue where users added to a new conversation would not receive real-time updates. The client now correctly handles the `conversation:new` socket event and joins the room.
+- **Server Race Condition:** Fixed a `P2003 Foreign key constraint violated` error on the server that occurred when marking a message as read too quickly. Message creation is now wrapped in a database transaction to ensure atomicity.
+- **UI & Data Sync:**
+  - Fixed a bug where deleting a group or conversation would not be reflected in the UI until a page refresh.
+  - Fixed the user search functionality within the "Create Group" modal, which was failing due to an authentication issue.
+  - Fixed a UI bug where the sender's name in group chats was invisible in dark mode by applying a theme-aware CSS filter.
+- **General Stability:**
+  - Fixed a bug where the initial page load would get stuck in a loading state indefinitely.
+  - Resolved a Vite configuration error (`fs.allow`) that prevented `react-pdf` styles from loading.
+  - Corrected multiple JavaScript `ReferenceError` and syntax errors (`Unexpected ")"`, misplaced `import`) that were introduced during the extensive refactoring process.
+
+## [1.1.2] - 2025-11-08
+
+This release addresses critical backend architecture and frontend user experience issues, improving application stability and robustness.
+
+### Fixed
+
+- **Online Status Race Condition:** Migrated the online presence tracking system from a local in-memory `Set` to a centralized Redis set. This resolves a potential race condition and ensures that the presence status and the E2EE key recovery mechanism work reliably across multiple server instances.
+- **Conversation Load Error Handling:** Improved the user experience for data loading errors. The conversation list now displays a descriptive error message and a "Retry" button if conversations fail to load, allowing users to recover from network failures without a full page refresh.
+
+## [1.1.1] - 2025-11-08
+
+This release focuses on enhancing user experience with smoother UI transitions and a critical improvement to end-to-end encryption key recovery for offline messages.
+
+### Added
+
+- **Real-time E2EE Key Recovery:** Implemented a robust client-to-client key recovery mechanism via WebSocket. When a user comes online and encounters messages encrypted with a session key they don't possess (e.g., sent while offline), the client now securely requests the missing key from another online participant in the conversation.
+  - Server-side Socket.IO now orchestrates key requests and fulfillment between clients.
+  - Client-side Socket.IO handles emitting key requests and fulfilling requests from other clients.
+  - Client-side cryptographic logic (`crypto.ts`) now non-blockingly requests keys and re-encrypts keys for other clients.
+  - Client-side message store (`message.ts`) now re-decrypts messages after a missing key is successfully received.
+
+### Changed
+
+- **Animated Tab Indicators:** Refactored tab components (`GroupInfoPanel`, `UserInfoPanel`) to use a new `AnimatedTabs` component. The active tab indicator now slides smoothly between tabs using `framer-motion`'s `tween` transition, providing a more dynamic and responsive UI.
+- **Backdrop Contrast Improvement:** Adjusted the styling of `backdrop-blur` elements to ensure better color contrast in both light and and dark themes, making blurred backgrounds darker in light mode and lighter in dark mode.
+
+## [1.1.0] - 2025-11-08
+
+This release introduces a complete and robust account restore flow, ensuring users can access their full, decrypted message history on a new device. It also fixes critical bugs related to the restore process.
+
+### Added
+
+- **Full History Sync on Restore:** When restoring an account with a recovery phrase, the application now automatically fetches, decrypts, and stores the entire history of message encryption keys. This allows users to seamlessly view their old, encrypted messages on a new device.
+- **Backend Sync Endpoint:** Created a new, secure API endpoint (`/api/session-keys/sync`) to facilitate the secure transfer of historical keys to a newly restored device.
+
+### Fixed
+
+- **Failed Decryption on New Device:** Fixed the critical bug where messages in existing conversations would fail to decrypt after restoring an account.
+- **Stuck "Syncing" Notification:** Resolved an issue where the "Syncing message keys..." notification would get stuck in a loading state. This was traced to a race condition in React's Strict Mode and has been fixed by preventing concurrent synchronization processes.
+
+### Changed
+
+- **Code Cleanup:** Removed an obsolete and unused encryption utility file (`web/src/utils/e2ee.ts`) to reduce technical debt and improve clarity.
+
+## [1.0.9] - 2025-11-06
+
+This release focuses on improving UI clarity and accessibility.
+
+### Changed
+
+- **Message Bubble Styling:** Adjusted the styling of self-sent messages. The chosen accent color is now applied to the message bubble's background instead of the text, improving visual distinction.
+
+### Fixed
+
+- **Accessibility:** 
+  - Added descriptive `aria-label` attributes to all icon-only buttons across the application to improve screen reader compatibility.
+  - Fixed color contrast issues in the light theme for the blue and purple accent colors to ensure text remains readable.
+- **Performance:** Resolved a critical performance issue that caused high CPU usage when the onboarding modal was displayed by fixing a re-render loop.
+
+## [1.0.8] - 2025-11-06
+
+This release introduces a crucial onboarding experience for new users to familiarize them with the app's key security concepts.
+
+### Added
+
+- **New User Onboarding Tour:** Implemented a multi-step guided tour for first-time users that explains core security features like the Recovery Phrase and Safety Numbers.
+- **Backend Support for Onboarding:** Added a `hasCompletedOnboarding` flag to the user model in the database and created a new API endpoint to track the tour's completion status.
+
+### Fixed
+
+- **Onboarding API Call:** Fixed a `TypeError` that occurred when finishing the tour by correcting the API call syntax.
+- **Server-Side Rendering Issues:** Resolved an issue where a server restart was required for new backend changes to take effect.
+- **Database Schema Validation:** Corrected multiple validation errors in the Prisma schema that were preventing database migrations.
+- **Broken Registration Route:** Restored critical logic in the `/register` API endpoint that was accidentally deleted in a previous modification.
+
+## [1.0.7] - 2025-11-06
+
+This release introduces theme customization, allowing users to personalize the application by choosing their preferred accent color. It also includes several critical bug fixes for recently added features.
+
+### Added
+
+- **Accent Color Customization:** Users can now select their preferred accent color from a palette in the Settings page under the 'Appearance' section. The chosen color is applied across the entire application and is saved for future sessions.
+
+### Fixed
+
+- **Infinite Loop in Components:** Resolved a critical `Maximum update depth exceeded` error by wrapping function declarations in `useCallback` within `App.tsx` and `ChatList.tsx`, preventing infinite re-render loops.
+- **Missing React Import:** Fixed a `ReferenceError` by adding a missing `useCallback` import in `App.tsx`.
+- **Theme Picker UI:** Corrected a UI bug in the Settings page where color swatches were not displaying correctly. The implementation was changed to use inline styles for better reliability.
+
+## [1.0.6] - 2025-11-06
+
+This release upgrades the `Ctrl+K` shortcut into a full-featured Command Palette, allowing for quick execution of commands from anywhere in the application.
+
+### Added
+
+- **Command Palette:** Implemented a Command Palette (`Ctrl+K` or `Cmd+K`) for quick access to actions.
+  - Includes initial commands: 'Settings', 'Logout', and 'New Group' (contextual).
+  - Features include real-time filtering, keyboard navigation (Arrow keys & Enter), and a scalable command registration system.
+
+### Fixed
+
+- **Build Errors:** Resolved multiple build errors related to duplicate declarations and incorrect import paths that arose during the command palette implementation.
+
+## [1.0.5] - 2025-11-06
+
+This release introduces significant enhancements to file sharing, including a media gallery to browse all shared files in a conversation and rich previews for PDFs, videos, and audio files.
+
+### Added
+
+- **Media Gallery:** Added a 'Media' tab to the Group Info and User Info panels, allowing users to easily view all images, videos, and documents shared in a conversation.
+- **Rich File Previews:** File attachments in chats now show rich previews:
+  - **PDFs:** Display a preview of the first page directly in the chat.
+  - **Video & Audio:** Embed a playable media player for video and audio files.
+
+### Fixed
+
+- **Backend API:** Fixed a 500 Internal Server Error on the new `/media` API endpoint by correcting the database query to use the proper schema fields (`fileType`, `fileUrl`, `imageUrl`).
+- **PDF Preview Rendering:** Resolved a build error and a runtime warning related to the `react-pdf` library in Vite by correcting CSS import paths and self-hosting the required PDF worker script.
+
+## [1.0.4] - 2025-11-06
+
+This release introduces major keyboard navigation enhancements for a faster, more accessible user experience, and fixes bugs related to their implementation.
+
+### Added
+
+- **Keyboard Navigation:** Implemented comprehensive keyboard navigation features:
+  - **Chat List Navigation:** Users can now navigate the conversation list using the `Arrow Up` and `Arrow Down` keys and open a chat by pressing `Enter`.
+  - **Global Escape:** Pressing the `Escape` key now closes any open modal or side panel, providing a consistent way to exit views.
+  - **Quick Search Shortcut:** Added a global `Ctrl+K` (or `Cmd+K` on Mac) shortcut to immediately focus the main search bar from anywhere in the app.
+
+### Fixed
+
+- **Keyboard Navigation Bugs:** Resolved several reference and syntax errors in the `ChatList` component that occurred during the implementation of keyboard navigation, ensuring the feature is stable.
+
+## [1.0.3] - 2025-11-06
+
+This release addresses a critical message loading bug and includes several UI refinements and fixes based on user feedback after the Neumorphic redesign.
+
+### Changed (Improvements & Refactors)
+
+- **Button Theme:** Reverted primary action buttons from a gradient to a solid accent color (`bg-accent`). This resolves a visual bug where the button and its text were not visible in light mode and improves consistency with the Neumorphic design.
+
+### Fixed
+
+- **Message Loading:** Fixed a bug where older messages would not load when opening a conversation for the first time. The app now automatically fetches additional message pages to ensure the chat history is scrollable.
+- **Toggle Switch UI:** Corrected a visual glitch in the Neumorphic `ToggleSwitch` where the handle was not vertically centered within its track.
+
+## [1.0.2] - 2025-11-06
+
+This release completes the transition to a full Neumorphic design system, ensuring a consistent and tactile UI across the entire application. It also includes several configuration and bug fixes.
+
+### Changed (Improvements & Refactors)
+
+- **Neumorphic Design System:** Completed the full implementation of the Neumorphic design system, replacing all remaining standard UI elements.
+- **Component Styling:** Refactored all major components to use `convex` (protruding) and `concave` (recessed) neumorphic styles, including: Modals, Panels, Cards, List Items, Message Bubbles, Buttons, and Input Fields.
+- **Toggle Switch Redesign:** Rebuilt all Toggle Switches to be fully neumorphic, with a concave track and a convex handle for a more tactile feel.
+- **Dark Mode Tuning:** Fine-tuned dark mode neumorphic shadows to be more subtle and visually pleasing based on user feedback.
+
+### Fixed
+
+- **Build Failure:** Fixed a build error caused by a missing `colors` definition in the Tailwind CSS configuration.
+- **JSX Syntax Errors:** Corrected JSX parsing errors in `Register.tsx` and `Login.tsx` that prevented the application from loading.
+- **Corrupted Component:** Repaired the `MessageBubble.tsx` component file which contained duplicate, conflicting code.
+
+## [1.0.1] - 2025-11-06
+
+This release focuses on a significant UI/UX overhaul, introducing a unique visual identity and advanced responsive layouts.
+
+### Added (New Features)
+
+- **"Aurora" Gradient Theme:** Implemented a distinctive Teal-to-Indigo gradient as the application's new accent color, applied to primary buttons and key UI elements.
+- **"Command Center" Layout:** Introduced an adaptive three-column layout for ultrawide monitors, displaying ChatList, ChatWindow, and a contextual info panel (GroupInfoPanel or UserInfoPanel) simultaneously.
+- **Hybrid Tablet Experience:** Implemented dynamic layout switching for tablets based on orientation (mobile-like in portrait, desktop-like in landscape).
+- **`useOrientation` Hook:** Created a custom React hook to detect and respond to screen orientation changes.
+- **`UserInfoPanel` Component:** Developed a dedicated panel to display user information in the three-column layout.
+- **New `2xl` Breakpoint:** Added a `2xl` breakpoint (1920px) to Tailwind CSS for ultrawide screen optimization.
+
+### Changed (Improvements & Refactors)
+
+- **"Floating Glass" Sidebar:** Transformed the desktop ChatList sidebar into a semi-transparent, blurred panel (`backdrop-blur-sm`) that floats over the main content, creating a modern depth effect.
+- **Dynamic Background Pattern:** Added a subtle SVG pattern to the ChatWindow background, visible through the transparent sidebar, enhancing the visual depth.
+- **Unified Button Styling:** Standardized all primary buttons across the application (including Auth pages, Message Input, Create Group, Settings, and Modals) to consistently use the new "Aurora" gradient.
+- **Improved Color Contrast:** Further refined color contrast ratios for secondary text in both light and dark themes to enhance accessibility.
+
+### Fixed
+
+- **Layout Overlap:** Resolved the issue where the floating sidebar obscured the ChatWindow content by adding responsive left padding to the main content area.
+- **Solid Sidebar Background:** Fixed the bug where the ChatList sidebar appeared solid by removing an erroneous `bg-surface` class from individual chat items.
+- **JSX Parsing Errors:** Corrected multiple JSX closing tag errors in `Settings.tsx`.
+- **Gradient Application:** Fixed issues where the new "Aurora" gradient was not correctly applied to primary buttons on Auth pages and various in-app components.
+
+## [1.0.0] - 2025-11-05
+
+This is a massive overhaul release, focusing on security, new features, and a complete UI/UX redesign.
+
+### Added (New Features)
+
+- **Secure Device Linking:** Implemented a new, secure flow to link a new device using a QR code, eliminating the need to re-enter the recovery phrase.
+- **Biometric Login:** Added support for logging in using platform authenticators (e.g., fingerprint, face ID).
+- **Account Restore:** Created a new flow for restoring an account from the 24-word recovery phrase.
+- **Session Management:** Added a new page where users can view and manage all their active sessions.
+- **Group Chat:** Implemented full support for creating and managing group conversations.
+- **E2EE & Security:**
+  - Implemented the Double Ratchet algorithm for robust, self-healing E2EE session management.
+  - Added Safety Number verification to allow users to confirm the identity of their contacts.
+  - Strengthened the master key generation and storage process.
+- **In-App Notifications:** Built a notification center and popup system for real-time, in-app alerts.
+- **User Profiles:** Added user profiles with display names and descriptions.
+- **Message Features:**
+  - Implemented link previews for URLs shared in messages.
+  - Added message search functionality.
+  - Implemented read receipts and unread message counts.
+  - Added an emoji picker to the message input.
+  - Implemented message replies.
+
+### Changed (Improvements & Refactors)
+
+- **Major UI/UX Overhaul:**
+  - Defined and implemented a new professional, HSL-based color palette with full light/dark mode support.
+  - Redesigned all key components (`ChatList`, `MessageBubble`, `ChatWindow`, Modals) for a modern and consistent look.
+  - Standardized all forms, inputs, and buttons across the application with clear `hover`, `focus`, and `disabled` states.
+  - Added smooth CSS transitions and `framer-motion` animations for a more dynamic and responsive user experience (e.g., sidebar slide-in, message fade-in, list re-ordering).
+  - Improved color contrast ratios for better accessibility.
+- **Architecture & Performance:**
+  - Migrated device linking state from server memory to **Redis** for improved scalability and reliability.
+  - Refactored socket logic for more efficient real-time communication, including implicit 1-on-1 chat creation.
+  - Replaced CSS-based animations with `framer-motion` for smoother, physics-based transitions.
+  - Implemented `react-virtuoso` for efficient rendering of long message and conversation lists.
+
+### Fixed
+
+- **Server Stability:** Fixed a critical server crash that occurred during `typing` events by adding defensive checks for the user object.
+- **Client-Side Errors:**
+  - Resolved a `ReferenceError` in the `ChatList` component that occurred after a refactor.
+  - Fixed a bug that prevented messages from being decrypted correctly on the client.
+- **UI/UX Bugs:**
+  - Fixed an issue where modals and dropdowns had a transparent background, adding a `backdrop-blur` effect for a modern look.
+  - Corrected numerous visual and contrast issues across the app after the new theme was implemented.
+- **Authentication:** Patched a token unauthorization bug.
+- **General Stability:** Numerous miscellaneous bug fixes and stability improvements (as noted by commits like `stable`, `stable3`, `stable4`, `stable5`, etc.).

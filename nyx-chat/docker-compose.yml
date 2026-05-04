@@ -1,0 +1,61 @@
+services:
+  # 1. Database PostgreSQL
+  postgres:
+    image: postgres:18-alpine
+    container_name: nyx-db
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}      # <--- Mengambil dari .env
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD} # <--- Mengambil dari .env
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - nyx-net
+
+  # 2. Redis Cache
+  redis:
+    image: redis:alpine
+    container_name: nyx-redis
+    restart: always
+    networks:
+      - nyx-net
+
+  # 3. Backend (API)
+  server:
+    build: ./server
+    container_name: nyx-api
+    restart: always
+    depends_on:
+      - postgres
+      - redis
+    environment:
+      PORT: 4000
+      # Gunakan nama service docker ('postgres') sebagai hostname
+      DATABASE_URL: ${DATABASE_URL} 
+      JWT_SECRET: ${JWT_SECRET}
+      REDIS_URL: redis://redis:6379
+      CLIENT_URL: ${CLIENT_URL:-http://localhost}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
+    networks:
+      - nyx-net
+
+  # 4. Frontend (Web + Nginx Reverse Proxy)
+  web:
+    build: ./web
+    container_name: nyx-web
+    restart: always
+    depends_on:
+      - server
+    ports:
+      - "3000" # Akses aplikasi di http://localhost
+    networks:
+      - nyx-net
+    # Konfigurasi reverse proxy sederhana via docker labels atau nginx config tambahan
+    # Agar lebih simpel, kita akan update nginx.conf di Langkah 2 sedikit lagi di bawah
+
+volumes:
+  postgres_data:
+
+networks:
+  nyx-net:

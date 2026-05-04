@@ -1,0 +1,8 @@
+packages:
+  - web
+  - server
+  - marketing
+  - packages/*
+
+onlyBuiltDependencies:
+  - supabase
